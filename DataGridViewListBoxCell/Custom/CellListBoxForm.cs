@@ -1,7 +1,25 @@
-﻿using System.Diagnostics;
-
-namespace CustomDataGridViewControls.Custom
+﻿namespace CustomDataGridViewControls.Custom
 {
+    public partial class CellListBoxForm : Form
+    {
+        public CellListBoxForm
+            (Point point,
+             Size size,
+             string displayMember,
+             object dataSource)
+        {
+            InitializeComponent();
+
+            this.Location = point;
+            this.Size = size;
+
+            this.masterDataListBox.DisplayMember = displayMember;
+            this.masterDataListBox.DataSource = dataSource;
+        }
+
+        public ListBox ListBox => this.masterDataListBox;
+    }
+
     public class DataGridViewListBoxColumn : DataGridViewColumn
     {
         /// <summary>
@@ -51,7 +69,7 @@ namespace CustomDataGridViewControls.Custom
             }
         }
 
-        public override Type EditType => typeof(DataGridViewListBoxEditingControl);
+        public override Type EditType => null;
 
         public override object DefaultNewRowValue => string.Empty;
 
@@ -63,7 +81,7 @@ namespace CustomDataGridViewControls.Custom
 
             if (column?.DataSource != null)
             {
-                ListBoxForm listBoxForm = new(column.FormPoint, column.FormSize, column.DisplayMember, column.DataSource);
+                CellListBoxForm listBoxForm = new(column.FormPoint, column.FormSize, column.DisplayMember, column.DataSource);
 
                 listBoxForm.ListBox.KeyPress += (s, e) =>
                 {
@@ -78,8 +96,14 @@ namespace CustomDataGridViewControls.Custom
                     listBoxForm.Close();
                 };
 
+                listBoxForm.FormClosing += (s, e) =>
+                {
+                    column.FormPoint = listBoxForm.Location;
+                    column.FormSize = listBoxForm.Size;
+                };
 
-                listBoxForm.Show();
+
+                listBoxForm.ShowDialog();
 
                 if (listBoxForm.ListBox.SelectedItem != null)
                 {

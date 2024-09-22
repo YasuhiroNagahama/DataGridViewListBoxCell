@@ -1,6 +1,6 @@
-﻿namespace CustomDataGridViewControls
+﻿namespace CustomDataGridViewControls.Custom
 {
-    partial class ListBoxForm
+    partial class CellListBoxForm
     {
         /// <summary>
         /// Required designer variable.
@@ -33,8 +33,6 @@
             // 
             // masterDataListBox
             // 
-            masterDataListBox.ColumnWidth = 320;
-            masterDataListBox.DisplayMember = "DispData";
             masterDataListBox.Dock = DockStyle.Fill;
             masterDataListBox.Font = new Font("Yu Gothic UI", 16F);
             masterDataListBox.FormattingEnabled = true;
@@ -42,17 +40,19 @@
             masterDataListBox.Location = new Point(0, 0);
             masterDataListBox.MultiColumn = true;
             masterDataListBox.Name = "masterDataListBox";
-            masterDataListBox.Size = new Size(572, 366);
+            masterDataListBox.Size = new Size(495, 325);
             masterDataListBox.TabIndex = 0;
             // 
-            // ListBoxForm
+            // CellListBoxForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(572, 366);
+            ClientSize = new Size(495, 325);
             Controls.Add(masterDataListBox);
-            Name = "ListBoxForm";
-            Text = "ListBoxForm";
+            MaximizeBox = false;
+            MinimizeBox = false;
+            Name = "CellListBoxForm";
+            Text = "CellListBoxForm";
             ResumeLayout(false);
         }
 
