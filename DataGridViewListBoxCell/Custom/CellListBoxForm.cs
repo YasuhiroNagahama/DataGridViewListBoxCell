@@ -1,9 +1,9 @@
-﻿using System.Diagnostics;
-
-namespace CustomDataGridViewControls.Custom
+﻿namespace CustomDataGridViewControls.Custom
 {
     public partial class CellListBoxForm : Form
     {
+        private bool isHandled;
+
         public event EventHandler FormHiding;
 
         /// <summary>
@@ -21,6 +21,8 @@ namespace CustomDataGridViewControls.Custom
         {
             InitializeComponent();
 
+            this.isHandled = false;
+
             this.Location = point;
             this.Size = size;
 
@@ -28,44 +30,49 @@ namespace CustomDataGridViewControls.Custom
             this.masterDataListBox.DataSource = dataSource;
         }
 
-        /// <summary>
-        /// ListBoxコントロールを取得
-        /// </summary>
+        public bool IsHandled => this.isHandled;
         public ListBox ListBox => this.masterDataListBox;
 
         public void CustomHide()
         {
-            base.Hide();
+            if(this.Visible)
+            {
+                base.Hide();
 
-            // Hide イベントを発生させる
-            this.FormHiding?.Invoke(this, EventArgs.Empty);
+                // Hide イベントを発生させる
+                this.FormHiding?.Invoke(this, EventArgs.Empty);
 
-            // Hidingイベントを初期化する。
-            // ここで初期化することにより、イベントハンドラ登録前に削除する必要がなくなる。（重複を意識しなくてもよくなる）;
-            this.ResetHidingEvents();
+                // Hidingイベントを初期化する。
+                // ここで初期化することにより、イベントハンドラ登録前に削除する必要がなくなる。（重複を意識しなくてもよくなる）;
+                this.Initialize();
+            }
         }
 
         private void ListBox_KeyPress(object sender, KeyPressEventArgs e)
         {
             if (e.KeyChar == (char)Keys.Enter)
             {
+                this.isHandled = true;
                 this.CustomHide();
             }
         }
 
         private void ListBox_DoubleClick(object sender, EventArgs e)
         {
+            this.isHandled = true;
             this.CustomHide();
         }
 
         private void ListBoxForm_FormClosing(object sender, FormClosingEventArgs e)
         {
             e.Cancel = true;
+
             this.CustomHide();
         }
 
-        private void ResetHidingEvents()
+        private void Initialize()
         {
+            this.isHandled = false;
             this.FormHiding = null;
         }
     }
@@ -74,38 +81,13 @@ namespace CustomDataGridViewControls.Custom
     {
         public readonly CellListBoxForm CellListBoxForm;
 
-        // フォームのListBoxの表示メンバー
-        public string DisplayMember;
-        // フォームのListBoxのデータソース
-        public object DataSource;
-        // 表示するフォームの位置
-        public Point FormPoint { get; set; }
-        // 表示するフォームの大きさ
-        public Size FormSize { get; set; }
-
         /// <summary>
         /// コンストラクタ。カスタムセル（DataGridViewListBoxCell）を列のセルテンプレートとして設定
         /// </summary>
-        public DataGridViewListBoxColumn(string displayMember, object DataSource, Point formPoint, Size formSize)
+        public DataGridViewListBoxColumn(Point formPoint, Size formSize, string displayMember, object DataSource)
             : base(new DataGridViewListBoxCell())
         {
-            this.DisplayMember = displayMember;
-            this.DataSource = DataSource;
-            this.FormPoint = formPoint;
-            this.FormSize = formSize;
-
-            this.CellListBoxForm = new(this.FormPoint, this.FormSize, this.DisplayMember, this.DataSource);
-        }
-
-        /// <summary>
-        /// 列をクローンし、データソースを新しい列にもコピーします。
-        /// </summary>
-        /// <returns>クローンされたDataGridViewListBoxColumnオブジェクト</returns>
-        public override object Clone()
-        {
-            var clone = (DataGridViewListBoxColumn)base.Clone();
-            clone.DataSource = DataSource;
-            return clone;
+            this.CellListBoxForm = new(formPoint, formSize, displayMember, DataSource);
         }
     }
 
@@ -122,13 +104,6 @@ namespace CustomDataGridViewControls.Custom
         public override void InitializeEditingControl(int rowIndex, object initialFormattedValue, DataGridViewCellStyle dataGridViewCellStyle)
         {
             base.InitializeEditingControl(rowIndex, initialFormattedValue, dataGridViewCellStyle);
-
-            // 編集モードを開始する際にコントロールを初期化
-            //if (DataGridView.EditingControl is DataGridViewListBoxEditingControl control)
-            //{
-            //    var column = OwningColumn as DataGridViewListBoxColumn;
-            //    control.DataSource = column?.DataSource;
-            //}
         }
 
         /// <summary>
@@ -144,9 +119,9 @@ namespace CustomDataGridViewControls.Custom
         /// </summary>
         public override object DefaultNewRowValue => "";
 
-        protected override void OnClick(DataGridViewCellEventArgs e)
+        protected override void OnEnter(int rowIndex, bool throughMouseClick)
         {
-            base.OnClick(e);
+            base.OnEnter(rowIndex, throughMouseClick);
 
             if (OwningColumn is DataGridViewListBoxColumn column)
             {
@@ -170,13 +145,13 @@ namespace CustomDataGridViewControls.Custom
         {
             if (OwningColumn is DataGridViewListBoxColumn column)
             {
-                if (column.CellListBoxForm.ListBox.SelectedItem != null)
+                if (column.CellListBoxForm.ListBox.SelectedItem is DialogItem dialogItem
+                    && column.CellListBoxForm.IsHandled)
                 {
+                    // セルの編集状態を終了(ここで終了しておかないと編集状態の時にセルに反映されない)
+                    DataGridView?.EndEdit();
 
-                    if (column.CellListBoxForm.ListBox.SelectedItem is DialogItem dialogItem)
-                    {
-                        Value = dialogItem.Data; // 選択された値をセルに設定
-                    }
+                    Value = dialogItem.Data; // 選択された値をセルに設定
 
                     DataGridView.NotifyCurrentCellDirty(true);
                 }
@@ -187,11 +162,7 @@ namespace CustomDataGridViewControls.Custom
     public class DataGridViewListBoxEditingControl : ListBox, IDataGridViewEditingControl
     {
         public DataGridView EditingControlDataGridView { get; set; }
-        public object EditingControlFormattedValue
-        {
-            get => SelectedItem is DialogItem dialogItem ? dialogItem.Data : string.Empty;
-            set => SelectedItem = value;
-        }
+        public object EditingControlFormattedValue { get; set; }
         public int EditingControlRowIndex { get; set; }
         public bool EditingControlValueChanged { get; set; }
         public Cursor EditingPanelCursor => Cursors.Default;
