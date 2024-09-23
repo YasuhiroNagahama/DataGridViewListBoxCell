@@ -1,7 +1,18 @@
-﻿namespace CustomDataGridViewControls.Custom
+﻿using System.Diagnostics;
+
+namespace CustomDataGridViewControls.Custom
 {
     public partial class CellListBoxForm : Form
     {
+        public event EventHandler FormHiding;
+
+        /// <summary>
+        /// コンストラクタ。フォームの位置、サイズ、表示メンバー、データソースを設定
+        /// </summary>
+        /// <param name="point">フォームの位置を示す座標</param>
+        /// <param name="size">フォームのサイズ</param>
+        /// <param name="displayMember">ListBoxに表示するメンバー</param>
+        /// <param name="dataSource">ListBoxにバインドするデータソース</param>
         public CellListBoxForm
             (Point point,
              Size size,
@@ -17,35 +28,79 @@
             this.masterDataListBox.DataSource = dataSource;
         }
 
+        /// <summary>
+        /// ListBoxコントロールを取得
+        /// </summary>
         public ListBox ListBox => this.masterDataListBox;
+
+        public void CustomHide()
+        {
+            base.Hide();
+
+            // Hide イベントを発生させる
+            this.FormHiding?.Invoke(this, EventArgs.Empty);
+
+            // Hidingイベントを初期化する。
+            // ここで初期化することにより、イベントハンドラ登録前に削除する必要がなくなる。（重複を意識しなくてもよくなる）;
+            this.ResetHidingEvents();
+        }
+
+        private void ListBox_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (e.KeyChar == (char)Keys.Enter)
+            {
+                this.CustomHide();
+            }
+        }
+
+        private void ListBox_DoubleClick(object sender, EventArgs e)
+        {
+            this.CustomHide();
+        }
+
+        private void ListBoxForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            e.Cancel = true;
+            this.CustomHide();
+        }
+
+        private void ResetHidingEvents()
+        {
+            this.FormHiding = null;
+        }
     }
 
     public class DataGridViewListBoxColumn : DataGridViewColumn
     {
-        /// <summary>
-        /// 派生元クラス（DataGirdViewColumn）にカスタムセル（DataGridViweListBoxCell）
-        /// を渡し列内のセルテンプレートを設定します。
-        /// セルクリック時にDataGridViweListBoxCellの動作になります。
-        /// </summary>
-        public DataGridViewListBoxColumn()
-            : base(new DataGridViewListBoxCell())
-        {
-        }
+        public readonly CellListBoxForm CellListBoxForm;
 
-        // フォームのListBoxに表示するデータソース
-        public object DataSource { get; set; }
-        public string DisplayMember { get; set; }
+        // フォームのListBoxの表示メンバー
+        public string DisplayMember;
+        // フォームのListBoxのデータソース
+        public object DataSource;
         // 表示するフォームの位置
         public Point FormPoint { get; set; }
         // 表示するフォームの大きさ
         public Size FormSize { get; set; }
 
         /// <summary>
-        /// クローンメソッドがない場合の問題
-        /// もし、Clone()メソッドをオーバーライドせず、デフォルトのままにしておくと、DataGridViewが列を複製したときにDataSourceの値が新しい列にコピーされません。その結果、複製された列ではDataSourceが設定されておらず、ListBoxのデータ表示ができなくなる可能性があります。
-        /// クローンメソッドをオーバーライドする理由:
-        /// Clone()メソッドをオーバーライドして、複製された列でもDataSourceが引き継がれるようにするためです。以下のコードでは、オーバーライドされたClone()メソッド内でDataSourceを手動でコピーしています。
+        /// コンストラクタ。カスタムセル（DataGridViewListBoxCell）を列のセルテンプレートとして設定
         /// </summary>
+        public DataGridViewListBoxColumn(string displayMember, object DataSource, Point formPoint, Size formSize)
+            : base(new DataGridViewListBoxCell())
+        {
+            this.DisplayMember = displayMember;
+            this.DataSource = DataSource;
+            this.FormPoint = formPoint;
+            this.FormSize = formSize;
+
+            this.CellListBoxForm = new(this.FormPoint, this.FormSize, this.DisplayMember, this.DataSource);
+        }
+
+        /// <summary>
+        /// 列をクローンし、データソースを新しい列にもコピーします。
+        /// </summary>
+        /// <returns>クローンされたDataGridViewListBoxColumnオブジェクト</returns>
         public override object Clone()
         {
             var clone = (DataGridViewListBoxColumn)base.Clone();
@@ -56,58 +111,69 @@
 
     public class DataGridViewListBoxCell : DataGridViewTextBoxCell
     {
+        /// <summary>
+        /// 編集モードを開始する際にコントロールを初期化
+        /// </summary>
+        /// <remarks>
+        /// セルが編集モードに入ったときに呼び出されます。
+        /// </remarks>
+        /// <param name="rowIndex">編集する行のインデックス</param>
+        /// <param name="initialFormattedValue">初期の書式設定済みの値</param>
         public override void InitializeEditingControl(int rowIndex, object initialFormattedValue, DataGridViewCellStyle dataGridViewCellStyle)
         {
             base.InitializeEditingControl(rowIndex, initialFormattedValue, dataGridViewCellStyle);
 
             // 編集モードを開始する際にコントロールを初期化
-            var control = DataGridView.EditingControl as DataGridViewListBoxEditingControl;
-            if (control != null)
-            {
-                var column = OwningColumn as DataGridViewListBoxColumn;
-                control.DataSource = column?.DataSource;
-            }
+            //if (DataGridView.EditingControl is DataGridViewListBoxEditingControl control)
+            //{
+            //    var column = OwningColumn as DataGridViewListBoxColumn;
+            //    control.DataSource = column?.DataSource;
+            //}
         }
 
-        public override Type EditType => null;
+        /// <summary>
+        /// セルの編集コントロールとしてNullを返す
+        /// </summary>
+        /// <remarks>
+        /// セルの編集コントロールの型をNullに設定することにより、通常の編集機能を無効化する。
+        /// </remarks>
+        public override Type EditType => typeof(DataGridViewTextBoxEditingControl);
 
-        public override object DefaultNewRowValue => string.Empty;
+        /// <summary>
+        /// 行追加時のセルの初期値として空文字を返す
+        /// </summary>
+        public override object DefaultNewRowValue => "";
 
         protected override void OnClick(DataGridViewCellEventArgs e)
         {
             base.OnClick(e);
 
-            var column = OwningColumn as DataGridViewListBoxColumn;
-
-            if (column?.DataSource != null)
+            if (OwningColumn is DataGridViewListBoxColumn column)
             {
-                CellListBoxForm listBoxForm = new(column.FormPoint, column.FormSize, column.DisplayMember, column.DataSource);
+                column.CellListBoxForm.FormHiding += this.FormHidingHandler;
 
-                listBoxForm.ListBox.KeyPress += (s, e) =>
+                column.CellListBoxForm.Show();
+            }
+        }
+
+        protected override void OnLeave(int rowIndex, bool throughMouseClick)
+        {
+            base.OnLeave(rowIndex, throughMouseClick);
+
+            if(OwningColumn is DataGridViewListBoxColumn column)
+            {
+                column.CellListBoxForm.CustomHide();
+            }
+        }
+
+        private void FormHidingHandler(object? sender, EventArgs e)
+        {
+            if (OwningColumn is DataGridViewListBoxColumn column)
+            {
+                if (column.CellListBoxForm.ListBox.SelectedItem != null)
                 {
-                    if (e.KeyChar == (char)Keys.Enter)
-                    {
-                        listBoxForm.Close();
-                    }
-                };
 
-                listBoxForm.ListBox.DoubleClick += (s, e) =>
-                {
-                    listBoxForm.Close();
-                };
-
-                listBoxForm.FormClosing += (s, e) =>
-                {
-                    column.FormPoint = listBoxForm.Location;
-                    column.FormSize = listBoxForm.Size;
-                };
-
-
-                listBoxForm.ShowDialog();
-
-                if (listBoxForm.ListBox.SelectedItem != null)
-                {
-                    if (listBoxForm.ListBox.SelectedItem is DialogItem dialogItem)
+                    if (column.CellListBoxForm.ListBox.SelectedItem is DialogItem dialogItem)
                     {
                         Value = dialogItem.Data; // 選択された値をセルに設定
                     }

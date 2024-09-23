@@ -33,6 +33,7 @@
             // 
             // masterDataListBox
             // 
+            masterDataListBox.ColumnWidth = 320;
             masterDataListBox.Dock = DockStyle.Fill;
             masterDataListBox.Font = new Font("Yu Gothic UI", 16F);
             masterDataListBox.FormattingEnabled = true;
@@ -42,6 +43,8 @@
             masterDataListBox.Name = "masterDataListBox";
             masterDataListBox.Size = new Size(495, 325);
             masterDataListBox.TabIndex = 0;
+            masterDataListBox.DoubleClick += ListBox_DoubleClick;
+            masterDataListBox.KeyPress += ListBox_KeyPress;
             // 
             // CellListBoxForm
             // 
@@ -53,6 +56,7 @@
             MinimizeBox = false;
             Name = "CellListBoxForm";
             Text = "CellListBoxForm";
+            FormClosing += ListBoxForm_FormClosing;
             ResumeLayout(false);
         }
 
