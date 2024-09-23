@@ -1,4 +1,6 @@
-﻿namespace CustomDataGridViewControls.Custom
+﻿using System.Diagnostics;
+
+namespace CustomDataGridViewControls.Custom
 {
     public partial class CellListBoxForm : Form
     {
@@ -17,7 +19,7 @@
             (Point point,
              Size size,
              string displayMember,
-             object dataSource)
+             List<DialogItem> dataSource)
         {
             InitializeComponent();
 
@@ -75,43 +77,41 @@
             this.isHandled = false;
             this.FormHiding = null;
         }
+
+        public string? Search(string input)
+        {
+            List<DialogItem> items = this.masterDataListBox.DataSource as List<DialogItem>;
+
+            // 数値の場合、Noで検索
+            if (int.TryParse(input, out int no))
+            {
+                var itemByNo = items.FirstOrDefault(i => i.No == no);
+                if (itemByNo != null)
+                {
+                    return itemByNo.Data;
+                }
+            }
+            else
+            {
+                // 文字列一致で検索
+                var itemByData = items.FirstOrDefault(i => i.Data == input);
+                if (itemByData != null)
+                {
+                    return itemByData.Data;
+                }
+            }
+
+            return null;
+        }
     }
 
-    public class DataGridViewListBoxColumn : DataGridViewColumn
+    public class DataGridViewListBoxColumn(Point formPoint, Size formSize, string displayMember, List<DialogItem> DataSource) : DataGridViewColumn(new DataGridViewListBoxCell())
     {
-        public readonly CellListBoxForm CellListBoxForm;
-
-        /// <summary>
-        /// コンストラクタ。カスタムセル（DataGridViewListBoxCell）を列のセルテンプレートとして設定
-        /// </summary>
-        public DataGridViewListBoxColumn(Point formPoint, Size formSize, string displayMember, object DataSource)
-            : base(new DataGridViewListBoxCell())
-        {
-            this.CellListBoxForm = new(formPoint, formSize, displayMember, DataSource);
-        }
+        public readonly CellListBoxForm CellListBoxForm = new(formPoint, formSize, displayMember, DataSource);
     }
 
     public class DataGridViewListBoxCell : DataGridViewTextBoxCell
     {
-        /// <summary>
-        /// 編集モードを開始する際にコントロールを初期化
-        /// </summary>
-        /// <remarks>
-        /// セルが編集モードに入ったときに呼び出されます。
-        /// </remarks>
-        /// <param name="rowIndex">編集する行のインデックス</param>
-        /// <param name="initialFormattedValue">初期の書式設定済みの値</param>
-        public override void InitializeEditingControl(int rowIndex, object initialFormattedValue, DataGridViewCellStyle dataGridViewCellStyle)
-        {
-            base.InitializeEditingControl(rowIndex, initialFormattedValue, dataGridViewCellStyle);
-        }
-
-        /// <summary>
-        /// セルの編集コントロールとしてNullを返す
-        /// </summary>
-        /// <remarks>
-        /// セルの編集コントロールの型をNullに設定することにより、通常の編集機能を無効化する。
-        /// </remarks>
         public override Type EditType => typeof(DataGridViewTextBoxEditingControl);
 
         /// <summary>
@@ -137,6 +137,32 @@
 
             if(OwningColumn is DataGridViewListBoxColumn column)
             {
+                if(Value is not null) {
+                    if(Value.ToString() is not null)
+                    {
+                        // やっぱりコントロールのTextboxでEnterを押したときも同じ処理をしなければならない
+
+                        // セルの編集状態を終了(ここで終了しておかないと編集状態の時にセルに反映されない)
+                        DataGridView?.EndEdit();
+
+                        string input = Value.ToString();
+                        string? searchValue = column.CellListBoxForm.Search(input);
+
+                        if (searchValue is not null)
+                        {
+                            Value = searchValue;
+                        }
+                        else
+                        {
+                            Value = "";
+                        }
+
+                        // Listから探す処理
+
+                        DataGridView.NotifyCurrentCellDirty(true);
+                    }
+                }
+
                 column.CellListBoxForm.CustomHide();
             }
         }
@@ -156,44 +182,6 @@
                     DataGridView.NotifyCurrentCellDirty(true);
                 }
             }
-        }
-    }
-
-    public class DataGridViewListBoxEditingControl : ListBox, IDataGridViewEditingControl
-    {
-        public DataGridView EditingControlDataGridView { get; set; }
-        public object EditingControlFormattedValue { get; set; }
-        public int EditingControlRowIndex { get; set; }
-        public bool EditingControlValueChanged { get; set; }
-        public Cursor EditingPanelCursor => Cursors.Default;
-
-        public bool RepositionEditingControlOnValueChange => false;
-
-        public object GetEditingControlFormattedValue(DataGridViewDataErrorContexts context)
-        {
-            return EditingControlFormattedValue;
-        }
-
-        public void ApplyCellStyleToEditingControl(DataGridViewCellStyle dataGridViewCellStyle)
-        {
-            // スタイル適用
-        }
-
-        public bool EditingControlWantsInputKey(Keys keyData, bool dataGridViewWantsInputKey)
-        {
-            return keyData == Keys.Left || keyData == Keys.Right || keyData == Keys.Up || keyData == Keys.Down;
-        }
-
-        public void PrepareEditingControlForEdit(bool selectAll)
-        {
-            // 編集の準備
-        }
-
-        protected override void OnSelectedIndexChanged(EventArgs e)
-        {
-            base.OnSelectedIndexChanged(e);
-            EditingControlValueChanged = true;
-            EditingControlDataGridView.NotifyCurrentCellDirty(true);
         }
     }
 }

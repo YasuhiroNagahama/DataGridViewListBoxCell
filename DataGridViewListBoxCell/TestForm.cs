@@ -19,6 +19,10 @@ namespace CustomDataGridViewControls
             DataGridViewListBoxColumn column1 = new(p, s, "DispData", list1);
             DataGridViewListBoxColumn column2 = new(p, s, "DispData", list2);
 
+            // ここでOwnerを指定しないとセル編集状態になった時にフォームが隠れてしまう。
+            column1.CellListBoxForm.Owner = this;
+            column2.CellListBoxForm.Owner = this;
+
             this.dataGridView.Columns.Add(column1);
             this.dataGridView.Columns.Add(column2);
         }
