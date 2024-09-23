@@ -11,16 +11,14 @@ namespace CustomDataGridViewControls
 
         private void TestForm_Load(object sender, EventArgs e)
         {
-            List<DialogItem> list = this.GetTestData();
-            DataGridViewListBoxColumn column = new()
-            {
-                DataSource = list,
-                DisplayMember = "DispData",
-                FormPoint = new Point(200, 200),
-                FormSize = new Size(1000, 200)
-            };
+            List<DialogItem> list1 = DialogItemGenerator.GenerateRandomDialogItems();
+            List<DialogItem> list2 = DialogItemGenerator.GenerateRandomDialogItems();
 
-            this.dataGridView.Columns.Add(column);
+            DataGridViewListBoxColumn column1 = new("DispData", list1, new Point(200, 200), new Size(1000, 200));
+            DataGridViewListBoxColumn column2 = new("DispData", list2, new Point(200, 200), new Size(1000, 200));
+
+            this.dataGridView.Columns.Add(column1);
+            this.dataGridView.Columns.Add(column2);
         }
 
         private List<DialogItem> GetTestData()
