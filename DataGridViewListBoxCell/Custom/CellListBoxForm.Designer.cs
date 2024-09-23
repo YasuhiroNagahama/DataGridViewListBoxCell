@@ -57,6 +57,7 @@
             Name = "CellListBoxForm";
             Text = "CellListBoxForm";
             FormClosing += ListBoxForm_FormClosing;
+            Load += CellListBoxForm_Load;
             ResumeLayout(false);
         }
 

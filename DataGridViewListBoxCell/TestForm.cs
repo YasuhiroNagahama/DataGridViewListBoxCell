@@ -11,13 +11,14 @@ namespace CustomDataGridViewControls
 
         private void TestForm_Load(object sender, EventArgs e)
         {
+            DialogItem dialogItem = new(0, "");
             List<DialogItem> list1 = DialogItemGenerator.GenerateRandomDialogItems();
             List<DialogItem> list2 = DialogItemGenerator.GenerateRandomDialogItems();
             Point p = new(200,200);
             Size s = new(200, 200);
 
-            DataGridViewListBoxColumn column1 = new(p, s, "DispData", list1);
-            DataGridViewListBoxColumn column2 = new(p, s, "DispData", list2);
+            DataGridViewListBoxColumn column1 = new(p, s, nameof(dialogItem.DispData), list1);
+            DataGridViewListBoxColumn column2 = new(p, s, nameof(dialogItem.DispData), list2);
 
             // ここでOwnerを指定しないとセル編集状態になった時にフォームが隠れてしまう。
             column1.CellListBoxForm.Owner = this;
