@@ -4,9 +4,14 @@ namespace CustomDataGridViewControls.Custom
 {
     public partial class CellListBoxForm : Form
     {
-        private bool isHandled;
+        public Point FormPoint { get; private set; }
+        public Size FormSize { get; private set; }
+        // ユーザーの入力があったかどうかをbool値で保持
+        // ListBox内のItemをDoubleClick、もしくは、Enterで選択した場合のみTrueになる
+        public bool UserInputReceived { get; private set; }
 
-        public event EventHandler FormHiding;
+        // Hideしたら発火するイベントハンドラ
+        public event EventHandler? FormHiding;
 
         /// <summary>
         /// コンストラクタ。フォームの位置、サイズ、表示メンバー、データソースを設定
@@ -23,45 +28,33 @@ namespace CustomDataGridViewControls.Custom
         {
             InitializeComponent();
 
-            this.isHandled = false;
+            this.UserInputReceived = false;
 
-            this.Location = point;
-            this.Size = size;
+            this.FormPoint = point;
+            this.FormSize = size;
 
             this.masterDataListBox.DisplayMember = displayMember;
             this.masterDataListBox.DataSource = dataSource;
         }
 
-        public bool IsHandled => this.isHandled;
-        public ListBox ListBox => this.masterDataListBox;
-
-        public void CustomHide()
+        private void Initialize()
         {
-            if(this.Visible)
-            {
-                base.Hide();
-
-                // Hide イベントを発生させる
-                this.FormHiding?.Invoke(this, EventArgs.Empty);
-
-                // Hidingイベントを初期化する。
-                // ここで初期化することにより、イベントハンドラ登録前に削除する必要がなくなる。（重複を意識しなくてもよくなる）;
-                this.Initialize();
-            }
+            this.UserInputReceived = false;
+            this.FormHiding = null;
         }
 
         private void ListBox_KeyPress(object sender, KeyPressEventArgs e)
         {
             if (e.KeyChar == (char)Keys.Enter)
             {
-                this.isHandled = true;
+                this.UserInputReceived = true;
                 this.CustomHide();
             }
         }
 
         private void ListBox_DoubleClick(object sender, EventArgs e)
         {
-            this.isHandled = true;
+            this.UserInputReceived = true;
             this.CustomHide();
         }
 
@@ -72,20 +65,30 @@ namespace CustomDataGridViewControls.Custom
             this.CustomHide();
         }
 
-        private void Initialize()
+        public DialogItem? GetSelectedItem() => this.masterDataListBox.SelectedItem as DialogItem;
+
+        public void CustomHide()
         {
-            this.isHandled = false;
-            this.FormHiding = null;
+            if (this.Visible)
+            {
+                this.Hide();
+
+                this.FormPoint = this.Location;
+                this.FormSize = this.Size;
+
+                this.FormHiding?.Invoke(this, EventArgs.Empty);
+                this.Initialize();
+            }
         }
 
         public string? Search(string input)
         {
-            List<DialogItem> items = this.masterDataListBox.DataSource as List<DialogItem>;
+            List<DialogItem>? items = this.masterDataListBox.DataSource as List<DialogItem>;
 
-            // 数値の場合、Noで検索
             if (int.TryParse(input, out int no))
             {
-                var itemByNo = items.FirstOrDefault(i => i.No == no);
+                // 数値の場合、Noで検索
+                var itemByNo = items?.FirstOrDefault(i => i.No == no);
                 if (itemByNo != null)
                 {
                     return itemByNo.Data;
@@ -93,8 +96,8 @@ namespace CustomDataGridViewControls.Custom
             }
             else
             {
-                // 文字列一致で検索
-                var itemByData = items.FirstOrDefault(i => i.Data == input);
+                // 数値変換負荷の場合、文字列一致で検索
+                var itemByData = items?.FirstOrDefault(i => i.Data == input);
                 if (itemByData != null)
                 {
                     return itemByData.Data;
@@ -102,6 +105,12 @@ namespace CustomDataGridViewControls.Custom
             }
 
             return null;
+        }
+
+        private void CellListBoxForm_Load(object sender, EventArgs e)
+        {
+            this.Location = this.FormPoint;
+            this.Size = this.FormSize;
         }
     }
 
@@ -125,9 +134,26 @@ namespace CustomDataGridViewControls.Custom
 
             if (OwningColumn is DataGridViewListBoxColumn column)
             {
+                column.CellListBoxForm.FormHiding -= this.FormHidingHandler;
                 column.CellListBoxForm.FormHiding += this.FormHidingHandler;
 
                 column.CellListBoxForm.Show();
+            }
+        }
+
+        protected override void OnClick(DataGridViewCellEventArgs e)
+        {
+            base.OnClick(e);
+
+            if (OwningColumn is DataGridViewListBoxColumn column)
+            {
+                if(!column.CellListBoxForm.Visible)
+                {
+                    column.CellListBoxForm.FormHiding -= this.FormHidingHandler;
+                    column.CellListBoxForm.FormHiding += this.FormHidingHandler;
+
+                    column.CellListBoxForm.Show();
+                }
             }
         }
 
@@ -137,30 +163,26 @@ namespace CustomDataGridViewControls.Custom
 
             if(OwningColumn is DataGridViewListBoxColumn column)
             {
-                if(Value is not null) {
-                    if(Value.ToString() is not null)
+                if(Value is object v
+                   && v.ToString() is string input)
+                {
+                    // やっぱりコントロールのTextboxでEnterを押したときも同じ処理をしなければならない
+
+                    // セルの編集状態を終了(ここで終了しておかないと編集状態の時にセルに反映されない)
+                    DataGridView?.EndEdit();
+
+                    string? searchValue = column.CellListBoxForm.Search(input);
+
+                    if (searchValue is not null)
                     {
-                        // やっぱりコントロールのTextboxでEnterを押したときも同じ処理をしなければならない
-
-                        // セルの編集状態を終了(ここで終了しておかないと編集状態の時にセルに反映されない)
-                        DataGridView?.EndEdit();
-
-                        string input = Value.ToString();
-                        string? searchValue = column.CellListBoxForm.Search(input);
-
-                        if (searchValue is not null)
-                        {
-                            Value = searchValue;
-                        }
-                        else
-                        {
-                            Value = "";
-                        }
-
-                        // Listから探す処理
-
-                        DataGridView.NotifyCurrentCellDirty(true);
+                        Value = searchValue;
                     }
+                    else
+                    {
+                        Value = "";
+                    }
+
+                    DataGridView.NotifyCurrentCellDirty(true);
                 }
 
                 column.CellListBoxForm.CustomHide();
@@ -171,8 +193,8 @@ namespace CustomDataGridViewControls.Custom
         {
             if (OwningColumn is DataGridViewListBoxColumn column)
             {
-                if (column.CellListBoxForm.ListBox.SelectedItem is DialogItem dialogItem
-                    && column.CellListBoxForm.IsHandled)
+                if (column.CellListBoxForm.UserInputReceived
+                    && column.CellListBoxForm.GetSelectedItem() is DialogItem dialogItem)
                 {
                     // セルの編集状態を終了(ここで終了しておかないと編集状態の時にセルに反映されない)
                     DataGridView?.EndEdit();
