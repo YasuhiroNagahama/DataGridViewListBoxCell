@@ -13,9 +13,11 @@ namespace CustomDataGridViewControls
         {
             List<DialogItem> list1 = DialogItemGenerator.GenerateRandomDialogItems();
             List<DialogItem> list2 = DialogItemGenerator.GenerateRandomDialogItems();
+            Point p = new(200,200);
+            Size s = new(200, 200);
 
-            DataGridViewListBoxColumn column1 = new("DispData", list1, new Point(200, 200), new Size(1000, 200));
-            DataGridViewListBoxColumn column2 = new("DispData", list2, new Point(200, 200), new Size(1000, 200));
+            DataGridViewListBoxColumn column1 = new(p, s, "DispData", list1);
+            DataGridViewListBoxColumn column2 = new(p, s, "DispData", list2);
 
             this.dataGridView.Columns.Add(column1);
             this.dataGridView.Columns.Add(column2);
