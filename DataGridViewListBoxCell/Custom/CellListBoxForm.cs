@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Data.Common;
+using System.Diagnostics;
 
 namespace CustomDataGridViewControls.Custom
 {
@@ -114,33 +115,47 @@ namespace CustomDataGridViewControls.Custom
         }
     }
 
-    public class DataGridViewListBoxColumn(Point formPoint, Size formSize, string displayMember, List<DialogItem> DataSource) : DataGridViewColumn(new DataGridViewListBoxCell())
+    public class DataGridViewListBoxColumn(Point formPoint, Size formSize, string displayMember, List<DialogItem> dataSource) : DataGridViewColumn(new DataGridViewListBoxCell())
     {
-        public readonly CellListBoxForm CellListBoxForm = new(formPoint, formSize, displayMember, DataSource);
+        public readonly CellListBoxForm CellListBoxForm = new(formPoint, formSize, displayMember, dataSource);
     }
 
     public class DataGridViewListBoxCell : DataGridViewTextBoxCell
     {
-        public override Type EditType => typeof(DataGridViewTextBoxEditingControl);
+        public override void InitializeEditingControl(int rowIndex, object initialFormattedValue, DataGridViewCellStyle dataGridViewCellStyle)
+        {
+            base.InitializeEditingControl(rowIndex, initialFormattedValue, dataGridViewCellStyle);
 
-        /// <summary>
-        /// 行追加時のセルの初期値として空文字を返す
-        /// </summary>
+            // イベントハンドラの重複回避
+            DataGridView.CellEndEdit -= this.DataGridView_CellEndEdit;
+            DataGridView.CellEndEdit += this.DataGridView_CellEndEdit;
+        }
+        public override Type EditType => typeof(DataGridViewTextBoxEditingControl);
         public override object DefaultNewRowValue => "";
 
+        /*----- オーバーライドして処理を追加 -----*/
         protected override void OnEnter(int rowIndex, bool throughMouseClick)
         {
             base.OnEnter(rowIndex, throughMouseClick);
 
             if (OwningColumn is DataGridViewListBoxColumn column)
             {
+                // イベントハンドラの重複回避
                 column.CellListBoxForm.FormHiding -= this.FormHidingHandler;
                 column.CellListBoxForm.FormHiding += this.FormHidingHandler;
 
                 column.CellListBoxForm.Show();
             }
         }
+        protected override void OnLeave(int rowIndex, bool throughMouseClick)
+        {
+            base.OnLeave(rowIndex, throughMouseClick);
 
+            if (OwningColumn is DataGridViewListBoxColumn column)
+            {
+                column.CellListBoxForm.CustomHide();
+            }
+        }
         protected override void OnClick(DataGridViewCellEventArgs e)
         {
             base.OnClick(e);
@@ -156,20 +171,19 @@ namespace CustomDataGridViewControls.Custom
                 }
             }
         }
+        /*----------*/
 
-        protected override void OnLeave(int rowIndex, bool throughMouseClick)
+        /*----- イベントハンドラの追加 -----*/
+        private void DataGridView_CellEndEdit(object? sender, DataGridViewCellEventArgs e)
         {
-            base.OnLeave(rowIndex, throughMouseClick);
-
-            if(OwningColumn is DataGridViewListBoxColumn column)
+            Debug.WriteLine("HELLO");
+            if (OwningColumn is DataGridViewListBoxColumn column)
             {
-                if(Value is object v
-                   && v.ToString() is string input)
+                if (Value is object v && v.ToString() is string input)
                 {
                     // やっぱりコントロールのTextboxでEnterを押したときも同じ処理をしなければならない
 
                     // セルの編集状態を終了(ここで終了しておかないと編集状態の時にセルに反映されない)
-                    DataGridView?.EndEdit();
 
                     string? searchValue = column.CellListBoxForm.Search(input);
 
@@ -188,7 +202,6 @@ namespace CustomDataGridViewControls.Custom
                 column.CellListBoxForm.CustomHide();
             }
         }
-
         private void FormHidingHandler(object? sender, EventArgs e)
         {
             if (OwningColumn is DataGridViewListBoxColumn column)
@@ -197,7 +210,7 @@ namespace CustomDataGridViewControls.Custom
                     && column.CellListBoxForm.GetSelectedItem() is DialogItem dialogItem)
                 {
                     // セルの編集状態を終了(ここで終了しておかないと編集状態の時にセルに反映されない)
-                    DataGridView?.EndEdit();
+                    // DataGridView?.EndEdit();
 
                     Value = dialogItem.Data; // 選択された値をセルに設定
 
@@ -205,5 +218,6 @@ namespace CustomDataGridViewControls.Custom
                 }
             }
         }
+        /*----------*/
     }
 }
