@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿using CustomDataGridViewControls.Custom;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
@@ -19,6 +20,8 @@ namespace CustomDataGridViewControls.Test2
         private string age;
         private string description;
         private string dispData;
+        private short no;
+        private DialogItem item;
 
         public RowData()
         {
@@ -26,6 +29,7 @@ namespace CustomDataGridViewControls.Test2
             this.age = "";
             this.description = "";
             this.dispData = "";
+            this.no = 0;
         }
 
         public string UserName
@@ -72,6 +76,28 @@ namespace CustomDataGridViewControls.Test2
             {
                 Debug.WriteLine(value);
                 this.dispData = value;
+                this.NotifyPropertyChanged();
+            }
+        }
+
+        public short No
+        {
+            get => this.no;
+            set
+            {
+                Debug.WriteLine(value);
+                this.no = value;
+                this.NotifyPropertyChanged();
+            }
+        }
+
+        public DialogItem Item
+        {
+            get => this.item;
+            set
+            {
+                Debug.WriteLine($"ViewModelからの通知\nNo : {value.No}\nData : {value.Data}\nDispData : {value.DispData}");
+                this.item = value;
                 this.NotifyPropertyChanged();
             }
         }

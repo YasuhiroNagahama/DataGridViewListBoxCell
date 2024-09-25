@@ -1,5 +1,7 @@
-﻿using System.Data.Common;
+﻿using System.ComponentModel;
+using System.Data.Common;
 using System.Diagnostics;
+using System.Reflection;
 
 namespace CustomDataGridViewControls.Custom
 {
@@ -82,7 +84,7 @@ namespace CustomDataGridViewControls.Custom
             }
         }
 
-        public string? Search(string input)
+        public DialogItem? Search(string input)
         {
             List<DialogItem>? items = this.masterDataListBox.DataSource as List<DialogItem>;
 
@@ -92,7 +94,7 @@ namespace CustomDataGridViewControls.Custom
                 var itemByNo = items?.FirstOrDefault(i => i.No == no);
                 if (itemByNo != null)
                 {
-                    return itemByNo.Data;
+                    return itemByNo;
                 }
             }
             else
@@ -101,7 +103,7 @@ namespace CustomDataGridViewControls.Custom
                 var itemByData = items?.FirstOrDefault(i => i.Data == input);
                 if (itemByData != null)
                 {
-                    return itemByData.Data;
+                    return itemByData;
                 }
             }
 
@@ -115,9 +117,10 @@ namespace CustomDataGridViewControls.Custom
         }
     }
 
-    public class DataGridViewListBoxColumn(Point formPoint, Size formSize, string displayMember, List<DialogItem> dataSource) : DataGridViewColumn(new DataGridViewListBoxCell())
+    public class DataGridViewListBoxColumn(Point formPoint, Size formSize, string displayMember, List<DialogItem> dataSource, string dataElsePropertyName) : DataGridViewColumn(new DataGridViewListBoxCell())
     {
         public readonly CellListBoxForm CellListBoxForm = new(formPoint, formSize, displayMember, dataSource);
+        public readonly string DataElsePropertyName = dataElsePropertyName;
     }
 
     public class DataGridViewListBoxCell : DataGridViewTextBoxCell
@@ -176,7 +179,6 @@ namespace CustomDataGridViewControls.Custom
         /*----- イベントハンドラの追加 -----*/
         private void DataGridView_CellEndEdit(object? sender, DataGridViewCellEventArgs e)
         {
-            Debug.WriteLine("HELLO");
             if (OwningColumn is DataGridViewListBoxColumn column)
             {
                 if (Value is object v && v.ToString() is string input)
@@ -185,11 +187,13 @@ namespace CustomDataGridViewControls.Custom
 
                     // セルの編集状態を終了(ここで終了しておかないと編集状態の時にセルに反映されない)
 
-                    string? searchValue = column.CellListBoxForm.Search(input);
+                    DialogItem? searchedItem = column.CellListBoxForm.Search(input);
 
-                    if (searchValue is not null)
+                    if (searchedItem is not null)
                     {
-                        Value = searchValue;
+                        Value = searchedItem.DispData;
+
+                        this.SetValueBindProperty(column.DataElsePropertyName, searchedItem);
                     }
                     else
                     {
@@ -214,7 +218,22 @@ namespace CustomDataGridViewControls.Custom
 
                     Value = dialogItem.Data; // 選択された値をセルに設定
 
+                    this.SetValueBindProperty(column.DataElsePropertyName, dialogItem);
+
                     DataGridView.NotifyCurrentCellDirty(true);
+                }
+            }
+        }
+
+        private void SetValueBindProperty(string propertyName, DialogItem value)
+        {
+            if (DataGridView?.CurrentRow.DataBoundItem is object boundItem)
+            {
+                var propertyInfo = boundItem.GetType().GetProperty(propertyName);
+
+                if (propertyInfo is PropertyInfo info)
+                {
+                    info.SetValue(boundItem, value);
                 }
             }
         }

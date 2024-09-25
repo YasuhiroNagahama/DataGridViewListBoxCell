@@ -33,8 +33,7 @@ namespace CustomDataGridViewControls
             Size s = new(200, 200);
             List<DialogItem> dialogItems = DialogItemGenerator.GenerateRandomDialogItems();
 
-            DataGridViewListBoxColumn tC4 = new(p, s, Constants.DIALOG_DISP_DATA, dialogItems);
-            tC4.DataPropertyName = "DispData";
+            DataGridViewListBoxColumn tC4 = new(p, s, Constants.DIALOG_DISP_DATA, dialogItems, "Item");
             tC4.CellListBoxForm.Owner = this;
 
             this.dataGridView.Columns.Add(tC1);
@@ -57,7 +56,10 @@ namespace CustomDataGridViewControls
 
         private void AddUserNameButton_Click(object sender, EventArgs e)
         {
-            this._viewModel.rowDataList[0].UserName = "竹村";
+            if (this._viewModel.rowDataList[0] is RowData rowData)
+            {
+                rowData.UserName = "竹村康洋";
+            }
         }
     }
 }
